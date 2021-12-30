@@ -138,25 +138,37 @@ def generate_relation_mask(doc, is_training, neg_relation_count):
 	return torch.tensor(relation_mask, dtype=torch.long), torch.tensor(relation_label, dtype=torch.long), relation_span
 
 def doc_to_input(doc, device, is_training=True, neg_entity_count=100, neg_relation_count=100, max_span_size=10):
-	input_ids = [CLS_TOKEN] + doc['data_frame']['token_ids'].tolist() + [SEP_TOKEN]
-	entity_mask, entity_label, entity_span = generate_entity_mask(doc, is_training, neg_entity_count, max_span_size)
-	assert entity_mask.shape[1]==len(input_ids)-2
-	relation_mask, relation_label, relation_span = generate_relation_mask(doc, is_training, neg_relation_count)
-	if not torch.equal(relation_mask, torch.tensor([], dtype=torch.long)):
-		assert relation_mask.shape[1] == len(input_ids)-2
-	return {'input_ids': torch.tensor([input_ids]).long().to(device),
-		'attention_mask': torch.ones((1, len(input_ids)), dtype=torch.long).to(device),
-		'token_type_ids': torch.zeros((1, len(input_ids)), dtype=torch.long).to(device),
-		'entity_mask': entity_mask.to(device),
-		'entity_label': entity_label.to(device),
-		'relation_mask': relation_mask.to(device),
-		'relation_label': relation_label.to(device)},\
-	       {'document_name': doc['document_name'],
-		'words': doc['data_frame']['words'],
-		'entity_embedding': doc['data_frame']['entity_embedding'],
-		'entity_span': entity_span,
-		'relation_span': relation_span}
-
+    input_ids = [CLS_TOKEN] + doc['data_frame']['token_ids'].tolist() + [SEP_TOKEN]
+    entity_mask, entity_label, entity_span = generate_entity_mask(doc, is_training, neg_entity_count, max_span_size)
+    assert entity_mask.shape[1]==len(input_ids)-2
+    relation_mask, relation_label, relation_span = generate_relation_mask(doc, is_training, neg_relation_count)
+    if not torch.equal(relation_mask, torch.tensor([], dtype=torch.long)):
+        assert relation_mask.shape[1] == len(input_ids)-2
+    try:
+        return {'input_ids': torch.tensor([input_ids]).long().to(device),
+            'attention_mask': torch.ones((1, len(input_ids)), dtype=torch.long).to(device),
+            'token_type_ids': torch.zeros((1, len(input_ids)), dtype=torch.long).to(device),
+            'entity_mask': entity_mask.to(device),
+            'entity_label': entity_label.to(device),
+            'relation_mask': relation_mask.to(device),
+            'relation_label': relation_label.to(device)},\
+               {'document_name': doc['document_name'],
+            'words': doc['data_frame']['words'],
+            'entity_embedding': doc['data_frame']['entity_embedding'],
+            'entity_span': entity_span,
+            'relation_span': relation_span}
+    except:
+        return {'input_ids': torch.tensor([input_ids]).long().to(device),
+            'attention_mask': torch.ones((1, len(input_ids)), dtype=torch.long).to(device),
+            'token_type_ids': torch.zeros((1, len(input_ids)), dtype=torch.long).to(device),
+            'entity_mask': entity_mask.to(device),
+            'entity_label': entity_label.to(device),
+            'relation_mask': relation_mask.to(device),
+            'relation_label': relation_label.to(device)},\
+               {'words': doc['data_frame']['words'],
+            'entity_embedding': doc['data_frame']['entity_embedding'],
+            'entity_span': entity_span,
+            'relation_span': relation_span}
 
 
 class Joint_Model(BertPreTrainedModel):
@@ -389,6 +401,7 @@ tokenizer = BertTokenizer.from_pretrained(pretrained_model_name_or_path='bert-ba
 relation_possibility=None
 
 
+
 # In[7]:
 
 
@@ -405,49 +418,50 @@ neural_model.load_state_dict(state_dict, strict=False)
 # In[ ]:
 
 
-def predict(sentences):
- try:
-  results = {}
-  entity_weights = torch.tensor([1.0]*len(range(entity_types)))
-  for sent_num, sentence in enumerate(sentences):
-    word_list = sentence.split()
-    words, token_ids = [], []
-    for word in word_list:
-      token_id = tokenizer(word)["input_ids"][1:-1]
-      for tid in token_id:
-        words.append(word)
-        token_ids.append(tid)
-    data_frame = pd.DataFrame()
-    data_frame['words'] = words
-    data_frame['token_ids'] = token_ids
-    data_frame['entity_embedding'] = 0
-    data_frame['sentence_embedding'] = 0
-    doc = {'data_frame': data_frame, 'entity_position':{}, 'entities':{}, 'relations':{}}
-    inputs, infos = doc_to_input(doc, device, is_training=False, max_span_size = max_span_size)
-    outputs = neural_model(entity_weights, **inputs, is_training=False)
-    pred_entity_span = outputs['entity']['span']
-    pred_relation_span = [] if outputs['relation'] is None else outputs['relation']['span']
-    tokens = tokenizer.convert_ids_to_tokens(token_ids)
-    dic = {'Entities':'', 'Relations':''}
-    for begin, end, entity_type in pred_entity_span:
-      dic['Entities']+=entity_label_map[entity_type]+'|'+' '.join(tokens[begin:end])+'\n'
-    for e1, e2, relation_type in pred_relation_span:
-      dic['Relations']+=relation_label_map[relation_type]+'|'+ ' '.join(tokens[e1[0]:e1[1]])+'...'+' '.join(tokens[e2[0]:e2[1]])+'\n'
-    results[sentence]=dic
-    return jsonify(result)
- except:
-  print('Error occur in script generating!', e)
-  return jsonify({'error': e}), 500
+def predict(base_text):
+    try:
+      sentences = sent_tokenizer.tokenize(base_text)
+      results = {}
+      entity_weights = torch.tensor([1.0]*len(range(entity_types)))
+      for sent_num, sentence in enumerate(sentences):
+        word_list = sentence.split()
+        words, token_ids = [], []
+        for word in word_list:
+          token_id = tokenizer(word)["input_ids"][1:-1]
+          for tid in token_id:
+            words.append(word)
+            token_ids.append(tid)
+        data_frame = pd.DataFrame()
+        data_frame['words'] = words
+        data_frame['token_ids'] = token_ids
+        data_frame['entity_embedding'] = 0
+        data_frame['sentence_embedding'] = 0
+        doc = {'data_frame': data_frame, 'entity_position':{}, 'entities':{}, 'relations':{}}
+        inputs, infos = doc_to_input(doc, device, is_training=False, max_span_size = max_span_size)
+        outputs = neural_model(entity_weights, **inputs, is_training=False)
+        pred_entity_span = outputs['entity']['span']
+        pred_relation_span = [] if outputs['relation'] is None else outputs['relation']['span']
+        tokens = tokenizer.convert_ids_to_tokens(token_ids)
+        dic = {'Entities':'', 'Relations':''}
+        for begin, end, entity_type in pred_entity_span:
+          dic['Entities']+=entity_label_map[entity_type]+'|'+' '.join(tokens[begin:end])+'\n'
+        for e1, e2, relation_type in pred_relation_span:
+          dic['Relations']+=relation_label_map[relation_type]+'|'+ ' '.join(tokens[e1[0]:e1[1]])+'...'+' '.join(tokens[e2[0]:e2[1]])+'\n'
+        results[sentence]=dic
+      return results
+    except:
+      print('Error occur in script generating!', e)
+      return jsonify({'error': e}), 500
 
 @app.route("/predict", methods=["POST"])
 def main():
     try:
-        sentences = request.form.get('sentences')
+        base_text = request.form.get('base_text')
 
     except Exception as e:
         return jsonify({'message': 'Invalid request'}), 500
 
-    prediction = predict(sentences)
+    prediction = predict(base_text)
     return prediction
 
 
