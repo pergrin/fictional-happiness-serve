@@ -1,7 +1,7 @@
 openapi: 3.0.1
 
 info:
-  title: Joint Entity and Relation Extraction
+  title: Extract named entities and underlying relations
   version: 1.0.0
   contact:
     name: Tarun Ashutosh
