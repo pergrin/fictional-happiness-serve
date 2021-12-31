@@ -419,7 +419,9 @@ neural_model.load_state_dict(state_dict, strict=False)
 
 
 def predict(base_text):
-    try:
+    #try:
+    with app.app_context():
+     try:
       sentences = sent_tokenizer.tokenize(base_text)
       results = {}
       entity_weights = torch.tensor([1.0]*len(range(entity_types)))
@@ -449,7 +451,7 @@ def predict(base_text):
           dic['Relations']+=relation_label_map[relation_type]+'|'+ ' '.join(tokens[e1[0]:e1[1]])+'...'+' '.join(tokens[e2[0]:e2[1]])+'\n'
         results[sentence]=dic
       return jsonify(results)
-    except:
+     except:
       print('Error occur in script generating!', e)
       return jsonify({'error': e}), 500
 
