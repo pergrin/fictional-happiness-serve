@@ -420,7 +420,7 @@ neural_model.to(device)
 # In[13]:
 
 
-state_dict = torch.load('joint_model.model', map_location=device)
+state_dict = torch.load('./model/joint_model.model', map_location=device)
 neural_model.load_state_dict(state_dict, strict=False)
 
 
