@@ -461,7 +461,7 @@ def predict(base_text):
                 results['sent_'+str(sent_num)]=dic
             #print(type(str(results)))
             fin_result['prediction']=str(results)
-            print(fin_result)
+            #print(fin_result)
             return jsonify(fin_result)
         except:
             print('Error occur in script generating!', e)
